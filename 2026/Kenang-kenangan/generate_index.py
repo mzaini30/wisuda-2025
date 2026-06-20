@@ -1,0 +1,893 @@
+import os
+import json
+import urllib.parse
+
+def main():
+    # File extensions to scan
+    valid_extensions = ('.jpg', '.jpeg', '.png')
+    
+    # List files in the current directory
+    files = os.listdir('.')
+    images = []
+    
+    for f in files:
+        if f.lower().endswith(valid_extensions):
+            # Clean name for title: remove extension, replace dashes/underscores with spaces
+            name_without_ext = os.path.splitext(f)[0]
+            clean_name = name_without_ext.replace('_', ' ').replace('-', ' ')
+            # If name starts with "WhatsApp Image", maybe keep it or clean it
+            if clean_name.lower().startswith('whatsapp image'):
+                # Extract date/time from name if possible, or just keep it
+                clean_name = "Foto Bersama (" + clean_name.split(' at ')[-1] + ")" if ' at ' in clean_name else "Foto Bersama"
+            
+            images.append({
+                'filename': f,
+                'url': urllib.parse.quote(f),
+                'title': clean_name
+            })
+            
+    # Sort alphabetically by title
+    images.sort(key=lambda x: x['title'].lower())
+    
+    print(f"Ditemukan {len(images)} foto.")
+    
+    # Write to a JSON file or inject directly into index.html
+    html_template = get_html_template(images)
+    
+    with open('index.html', 'w', encoding='utf-8') as html_file:
+        html_file.write(html_template)
+        
+    print("index.html berhasil dibuat!")
+
+def get_html_template(images):
+    images_json = json.dumps(images, indent=2)
+    return f"""<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kenang-kenangan Wisuda 2025/2026</title>
+    <!-- Premium Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <style>
+        :root {{
+            --bg-color: #050505;
+            --font-display: 'Playfair Display', Georgia, serif;
+            --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            --transition-speed: 1.2s;
+            --transition-timing: cubic-bezier(0.32, 0.72, 0, 1);
+        }}
+
+        * {{
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }}
+
+        body {{
+            background-color: var(--bg-color);
+            color: #ffffff;
+            font-family: var(--font-sans);
+            overflow: hidden;
+            height: 100vh;
+            height: 100dvh;
+        }}
+
+        /* Glow background */
+        .ambient-glow {{
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80vmax;
+            height: 80vmax;
+            background: radial-gradient(circle, rgba(147, 51, 234, 0.08) 0%, rgba(59, 130, 246, 0.03) 50%, rgba(0, 0, 0, 0) 100%);
+            z-index: 1;
+            pointer-events: none;
+        }}
+
+        /* Background Noise Overlay */
+        .noise-overlay {{
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+            opacity: 0.015;
+            z-index: 50;
+            pointer-events: none;
+        }}
+
+        /* Main Container */
+        .slideshow-container {{
+            position: relative;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }}
+
+        /* Slide Viewport */
+        .slide {{
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity var(--transition-speed) var(--transition-timing);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }}
+
+        .slide.active {{
+            opacity: 1;
+            pointer-events: auto;
+            z-index: 10;
+        }}
+
+        /* Blurred Background Image */
+        .slide-bg {{
+            position: absolute;
+            inset: -40px; /* offset to hide white borders from blur */
+            width: calc(100% + 80px);
+            height: calc(100% + 80px);
+            object-fit: cover;
+            filter: blur(35px) brightness(0.35) saturate(1.2);
+            transform: scale(1.05);
+            z-index: 1;
+        }}
+
+        /* Main Foreground Image */
+        .slide-fg-container {{
+            position: relative;
+            z-index: 2;
+            max-width: 90vw;
+            max-height: 80vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            /* Double Bezel for Images */
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            box-shadow: 
+                0 4px 30px rgba(0, 0, 0, 0.4),
+                inset 0 1px 1px rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            transform: translateY(30px) scale(0.96) rotate(0.5deg);
+            opacity: 0;
+            transition: 
+                transform var(--transition-speed) var(--transition-timing),
+                opacity var(--transition-speed) var(--transition-timing);
+        }}
+
+        .slide.active .slide-fg-container {{
+            transform: translateY(0) scale(1) rotate(0deg);
+            opacity: 1;
+        }}
+
+        /* Ken Burns zoom effect inside slide */
+        .slide-fg {{
+            max-width: 100%;
+            max-height: 76vh;
+            object-fit: contain;
+            border-radius: 16px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+            display: block;
+            /* smooth Ken Burns transition */
+            transform: scale(1);
+            transition: transform 6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }}
+
+        .slide.active .slide-fg {{
+            transform: scale(1.15);
+        }}
+
+        /* Header Info Overlay */
+        .header-overlay {{
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 40px 60px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            z-index: 30;
+            pointer-events: none;
+        }}
+
+        .info-block {{
+            pointer-events: auto;
+        }}
+
+        .info-subtitle {{
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.25em;
+            color: rgba(255, 255, 255, 0.4);
+            margin-bottom: 8px;
+            font-weight: 600;
+        }}
+
+        .info-title {{
+            font-family: var(--font-display);
+            font-size: 32px;
+            font-weight: 400;
+            color: #ffffff;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: transform 0.8s var(--transition-timing), opacity 0.8s var(--transition-timing);
+        }}
+
+        .slide.active ~ .header-overlay .info-title,
+        /* We dynamically update title, so transition it */
+        .info-title.visible {{
+            opacity: 1;
+            transform: translateY(0);
+        }}
+
+        .counter-block {{
+            font-family: var(--font-sans);
+            font-size: 14px;
+            letter-spacing: 0.1em;
+            color: rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 8px 16px;
+            border-radius: 99px;
+            backdrop-filter: blur(10px);
+            box-shadow: inset 0 1px 1px rgba(255,255,255,0.05);
+            pointer-events: auto;
+            cursor: pointer;
+            transition: background 0.3s;
+        }}
+        .counter-block:hover {{
+            background: rgba(255, 255, 255, 0.08);
+        }}
+
+        /* Double Bezel Floating Control Bar at Bottom */
+        .controls-wrapper {{
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 30;
+            padding: 6px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 999px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+        }}
+
+        .controls-inner {{
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            background: rgba(15, 15, 15, 0.85);
+            backdrop-filter: blur(25px);
+            padding: 10px 24px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1);
+        }}
+
+        .control-btn {{
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.6);
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border-radius: 50%;
+            transition: all 0.3s var(--transition-timing);
+            position: relative;
+        }}
+
+        .control-btn:hover {{
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.08);
+            transform: scale(1.08);
+        }}
+
+        .control-btn:active {{
+            transform: scale(0.95);
+        }}
+
+        /* Circular tracking icon inside play button */
+        .control-btn.play-btn {{
+            width: 44px;
+            height: 44px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            box-shadow: inset 0 1px 1px rgba(255,255,255,0.2);
+        }}
+        
+        .control-btn.play-btn:hover {{
+            background: rgba(255, 255, 255, 0.2);
+        }}
+
+        .control-btn svg {{
+            width: 18px;
+            height: 18px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 1.5;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }}
+
+        .control-btn.play-btn svg {{
+            width: 20px;
+            height: 20px;
+        }}
+
+        /* Slide Progress Bar */
+        .timeline-container {{
+            width: 120px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            overflow: hidden;
+            position: relative;
+        }}
+
+        .timeline-fill {{
+            height: 100%;
+            width: 0%;
+            background: #ffffff;
+            border-radius: 2px;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }}
+
+        /* Thumbnail Grid Drawer */
+        .drawer-overlay {{
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(20px);
+            z-index: 40;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.6s var(--transition-timing);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }}
+
+        .drawer-overlay.open {{
+            opacity: 1;
+            pointer-events: auto;
+        }}
+
+        .drawer-container {{
+            width: 85%;
+            max-width: 1200px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            transform: scale(0.95) translateY(30px);
+            transition: transform 0.6s var(--transition-timing);
+            padding: 20px;
+        }}
+
+        .drawer-overlay.open .drawer-container {{
+            transform: scale(1) translateY(0);
+        }}
+
+        .drawer-header {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 16px;
+        }}
+
+        .drawer-title {{
+            font-family: var(--font-display);
+            font-size: 28px;
+            font-weight: 400;
+        }}
+
+        .drawer-close {{
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #ffffff;
+            padding: 8px 16px;
+            border-radius: 99px;
+            cursor: pointer;
+            font-size: 12px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            transition: all 0.3s;
+        }}
+
+        .drawer-close:hover {{
+            background: rgba(255,255,255,0.15);
+            transform: scale(1.05);
+        }}
+
+        .thumbnail-grid {{
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            display: grid;
+            gap: 16px;
+            overflow-y: auto;
+            padding-right: 8px;
+            max-height: 60vh;
+        }}
+
+        /* Webkit scrollbar stylings */
+        .thumbnail-grid::-webkit-scrollbar {{
+            width: 6px;
+        }}
+        .thumbnail-grid::-webkit-scrollbar-track {{
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 3px;
+        }}
+        .thumbnail-grid::-webkit-scrollbar-thumb {{
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 3px;
+        }}
+        .thumbnail-grid::-webkit-scrollbar-thumb:hover {{
+            background: rgba(255, 255, 255, 0.3);
+        }}
+
+        .thumb-item {{
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            border: 2px solid transparent;
+            background: rgba(255, 255, 255, 0.03);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            transition: all 0.4s var(--transition-timing);
+        }}
+
+        .thumb-item img {{
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.6s var(--transition-timing);
+        }}
+
+        .thumb-item:hover {{
+            transform: scale(1.05);
+            border-color: rgba(255, 255, 255, 0.4);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+        }}
+
+        .thumb-item:hover img {{
+            transform: scale(1.1);
+        }}
+
+        .thumb-item.active {{
+            border-color: #ffffff;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.4);
+        }}
+
+        .thumb-info {{
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 8px;
+            background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%);
+            font-size: 10px;
+            color: #fff;
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.3s;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }}
+
+        .thumb-item:hover .thumb-info {{
+            opacity: 1;
+        }}
+
+        /* Responsive Layouts */
+        @media (max-width: 768px) {{
+            .header-overlay {{
+                padding: 24px;
+                flex-direction: column;
+                gap: 16px;
+                align-items: center;
+                text-align: center;
+            }}
+
+            .info-title {{
+                font-size: 24px;
+            }}
+
+            .slide-fg-container {{
+                max-width: 95vw;
+                max-height: 68vh;
+                padding: 6px;
+                border-radius: 16px;
+            }}
+
+            .slide-fg {{
+                max-height: 65vh;
+                border-radius: 10px;
+            }}
+
+            .controls-wrapper {{
+                bottom: 24px;
+            }}
+
+            .controls-inner {{
+                padding: 8px 16px;
+                gap: 12px;
+            }}
+            
+            .timeline-container {{
+                width: 80px;
+            }}
+
+            .drawer-container {{
+                width: 95%;
+                padding: 10px;
+            }}
+
+            .thumbnail-grid {{
+                grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+                gap: 10px;
+            }}
+        }}
+
+        /* Keyboard Info Toast */
+        .keyboard-toast {{
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(15,15,15,0.7);
+            border: 1px solid rgba(255,255,255,0.06);
+            backdrop-filter: blur(10px);
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 11px;
+            color: rgba(255,255,255,0.4);
+            z-index: 10;
+            pointer-events: none;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.5s, transform 0.5s;
+        }}
+        
+        .keyboard-toast.show {{
+            opacity: 1;
+            transform: translateY(0);
+        }}
+
+        .kdb-key {{
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 4px;
+            padding: 1px 5px;
+            margin: 0 2px;
+            font-family: monospace;
+            color: #fff;
+        }}
+    </style>
+</head>
+<body>
+
+    <div class="ambient-glow"></div>
+    <div class="noise-overlay"></div>
+
+    <!-- Container for Slides -->
+    <div class="slideshow-container" id="slideshow">
+        <!-- Slides injected via JS -->
+    </div>
+
+    <!-- Header Overlay -->
+    <div class="header-overlay">
+        <div class="info-block">
+            <div class="info-subtitle">Kenang-kenangan Wisuda</div>
+            <div class="info-title" id="photo-title">Siswa</div>
+        </div>
+        <div class="counter-block" id="photo-counter" onclick="toggleDrawer()">
+            0 / 0
+        </div>
+    </div>
+
+    <!-- Floating Playback Controls -->
+    <div class="controls-wrapper">
+        <div class="controls-inner">
+            <!-- Prev Button -->
+            <button class="control-btn" id="prev-btn" title="Sebelumnya">
+                <svg viewBox="0 0 24 24">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </button>
+            
+            <!-- Play/Pause Button -->
+            <button class="control-btn play-btn" id="play-btn" title="Putar / Jeda">
+                <svg viewBox="0 0 24 24" id="play-icon">
+                    <!-- pause path initially -->
+                    <rect x="6" y="4" width="4" height="16"></rect>
+                    <rect x="14" y="4" width="4" height="16"></rect>
+                </svg>
+            </button>
+
+            <!-- Next Button -->
+            <button class="control-btn" id="next-btn" title="Berikutnya">
+                <svg viewBox="0 0 24 24">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+            </button>
+
+            <!-- Timeline Tracker -->
+            <div class="timeline-container">
+                <div class="timeline-fill" id="timeline-fill"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Thumbnail Grid Drawer Overlay -->
+    <div class="drawer-overlay" id="drawer" onclick="closeDrawer(event)">
+        <div class="drawer-container" onclick="event.stopPropagation()">
+            <div class="drawer-header">
+                <h2 class="drawer-title">Galeri Foto</h2>
+                <button class="drawer-close" onclick="toggleDrawer()">Tutup</button>
+            </div>
+            <div class="thumbnail-grid" id="thumbnail-grid">
+                <!-- Thumbnails injected via JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Keyboard Shortcuts Hint -->
+    <div class="keyboard-toast" id="keyboard-hint">
+        Navigasi: <span class="kdb-key">←</span> <span class="kdb-key">→</span> | Jeda: <span class="kdb-key">Spasi</span> | Galeri: <span class="kdb-key">G</span>
+    </div>
+
+    <script>
+        // Data injected from Python
+        const IMAGES = {images_json};
+
+        let currentIndex = 0;
+        let isPlaying = true;
+        let slideInterval = null;
+        let progressInterval = null;
+        
+        const SLIDE_DURATION = 5000; // 5 seconds
+        const UPDATE_INTERVAL = 30;  // 30ms for smooth progress bar
+        let timeElapsed = 0;
+
+        const slideshow = document.getElementById('slideshow');
+        const photoTitle = document.getElementById('photo-title');
+        const photoCounter = document.getElementById('photo-counter');
+        const playBtn = document.getElementById('play-btn');
+        const playIcon = document.getElementById('play-icon');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const timelineFill = document.getElementById('timeline-fill');
+        const thumbnailGrid = document.getElementById('thumbnail-grid');
+        const drawer = document.getElementById('drawer');
+        const keyboardHint = document.getElementById('keyboard-hint');
+
+        // SVG Content for Play/Pause Icons
+        const playSVG = `<polygon points="5 3 19 12 5 21 5 3"></polygon>`;
+        const pauseSVG = `<rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect>`;
+
+        // Init Slideshow DOM
+        function initDOM() {{
+            if (IMAGES.length === 0) {{
+                slideshow.innerHTML = '<div style="font-size: 20px; color: rgba(255,255,255,0.5);">Tidak ada foto ditemukan di folder.</div>';
+                photoTitle.textContent = "Tidak ada foto";
+                photoCounter.textContent = "0/0";
+                return;
+            }}
+
+            IMAGES.forEach((img, idx) => {{
+                // Create Slide elements
+                const slideDiv = document.createElement('div');
+                slideDiv.className = `slide ${{idx === 0 ? 'active' : ''}}`;
+                slideDiv.id = `slide-${{idx}}`;
+
+                // Blurred Background
+                const bgImg = document.createElement('img');
+                bgImg.className = 'slide-bg';
+                bgImg.src = img.url;
+                bgImg.alt = img.title;
+                bgImg.loading = 'lazy';
+                slideDiv.appendChild(bgImg);
+
+                // Main Foreground Container (Double Bezel)
+                const fgContainer = document.createElement('div');
+                fgContainer.className = 'slide-fg-container';
+
+                const fgImg = document.createElement('img');
+                fgImg.className = 'slide-fg';
+                fgImg.src = img.url;
+                fgImg.alt = img.title;
+                if (idx > 1) fgImg.loading = 'lazy'; // Lazy load non-adjacent slides
+                fgContainer.appendChild(fgImg);
+
+                slideDiv.appendChild(fgContainer);
+                slideshow.appendChild(slideDiv);
+
+                // Create Thumbnail elements in Drawer
+                const thumbItem = document.createElement('div');
+                thumbItem.className = `thumb-item ${{idx === 0 ? 'active' : ''}}`;
+                thumbItem.id = `thumb-${{idx}}`;
+                thumbItem.onclick = () => {{
+                    goToSlide(idx);
+                    toggleDrawer();
+                }};
+
+                const thumbImg = document.createElement('img');
+                thumbImg.src = img.url;
+                thumbImg.alt = img.title;
+                thumbImg.loading = 'lazy';
+                thumbItem.appendChild(thumbImg);
+
+                const thumbInfo = document.createElement('div');
+                thumbInfo.className = 'thumb-info';
+                thumbInfo.textContent = img.title;
+                thumbItem.appendChild(thumbInfo);
+
+                thumbnailGrid.appendChild(thumbItem);
+            }});
+
+            updateSlideInfo();
+            startAutoplay();
+            
+            // Show keyboard hint toast shortly after load
+            setTimeout(() => {{
+                keyboardHint.classList.add('show');
+                setTimeout(() => {{
+                    keyboardHint.classList.remove('show');
+                }}, 6000);
+            }}, 1500);
+        }}
+
+        function updateSlideInfo() {{
+            if (IMAGES.length === 0) return;
+            const currentImg = IMAGES[currentIndex];
+            
+            // Animating title switch
+            photoTitle.classList.remove('visible');
+            setTimeout(() => {{
+                photoTitle.textContent = currentImg.title;
+                photoTitle.classList.add('visible');
+            }}, 200);
+
+            photoCounter.textContent = `${{currentIndex + 1}} / ${{IMAGES.length}}`;
+
+            // Active Class styling on Thumbnails
+            document.querySelectorAll('.thumb-item').forEach((thumb, idx) => {{
+                if (idx === currentIndex) {{
+                    thumb.classList.add('active');
+                    // Scroll to active thumbnail in grid
+                    thumb.scrollIntoView({{ behavior: 'smooth', block: 'nearest' }});
+                }} else {{
+                    thumb.classList.remove('active');
+                }}
+            }});
+        }}
+
+        function goToSlide(index) {{
+            if (IMAGES.length === 0) return;
+            
+            // Reset active classes
+            document.getElementById(`slide-${{currentIndex}}`).classList.remove('active');
+            
+            // Set new index
+            currentIndex = (index + IMAGES.length) % IMAGES.length;
+            
+            // Set active classes
+            document.getElementById(`slide-${{currentIndex}}`).classList.add('active');
+            
+            updateSlideInfo();
+            resetProgressBar();
+        }}
+
+        function nextSlide() {{
+            goToSlide(currentIndex + 1);
+        }}
+
+        function prevSlide() {{
+            goToSlide(currentIndex - 1);
+        }}
+
+        // Autoplay Logic
+        function startAutoplay() {{
+            isPlaying = true;
+            playIcon.innerHTML = pauseSVG;
+            playBtn.title = "Jeda";
+            
+            clearInterval(slideInterval);
+            clearInterval(progressInterval);
+            
+            timeElapsed = 0;
+            progressInterval = setInterval(() => {{
+                timeElapsed += UPDATE_INTERVAL;
+                const percentage = (timeElapsed / SLIDE_DURATION) * 100;
+                timelineFill.style.width = `${{Math.min(percentage, 100)}}%`;
+
+                if (timeElapsed >= SLIDE_DURATION) {{
+                    nextSlide();
+                }}
+            }}, UPDATE_INTERVAL);
+        }}
+
+        function pauseAutoplay() {{
+            isPlaying = false;
+            playIcon.innerHTML = playSVG;
+            playBtn.title = "Putar";
+            
+            clearInterval(slideInterval);
+            clearInterval(progressInterval);
+        }}
+
+        function togglePlay() {{
+            if (isPlaying) {{
+                pauseAutoplay();
+            }} else {{
+                startAutoplay();
+            }}
+        }}
+
+        function resetProgressBar() {{
+            timeElapsed = 0;
+            timelineFill.style.width = '0%';
+            if (isPlaying) {{
+                startAutoplay();
+            }}
+        }}
+
+        // Drawer Modal Controls
+        function toggleDrawer() {{
+            drawer.classList.toggle('open');
+        }}
+
+        function closeDrawer(event) {{
+            if (event.target === drawer) {{
+                drawer.classList.remove('open');
+            }}
+        }}
+
+        // Event Listeners
+        playBtn.onclick = togglePlay;
+        prevBtn.onclick = prevSlide;
+        nextBtn.onclick = nextSlide;
+
+        // Keyboard Shortcuts
+        document.addEventListener('keydown', (e) => {{
+            if (e.key === ' ' || e.code === 'Space') {{
+                e.preventDefault();
+                togglePlay();
+            }} else if (e.key === 'ArrowRight') {{
+                nextSlide();
+            }} else if (e.key === 'ArrowLeft') {{
+                prevSlide();
+            }} else if (e.key === 'g' || e.key === 'G') {{
+                toggleDrawer();
+            }} else if (e.key === 'Escape') {{
+                drawer.classList.remove('open');
+            }}
+        }});
+
+        // Initialize Page
+        initDOM();
+    </script>
+</body>
+</html>
+"""
+
+if __name__ == '__main__':
+    main()

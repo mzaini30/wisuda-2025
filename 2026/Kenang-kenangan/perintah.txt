@@ -1,0 +1,9 @@
+[INIT]
+- Selalu gunakan skill caveman
+- Temukan skill yang relevan lalu install dengan : skills add {nama skillnya} -y
+
+Ini adalah sekumpulan foto. Aku minta kamu buatkan suatu file index.html yang berisi slideshow yang menampilkan foto-foto ini secara bergantian dengan transisi yang bagus (yang cocok untuk slideshow foto transisinya). Terus, kalau misalnya fotonya ini portrait, otomatis kan ada space kosong di kanan dan kirinya ya. Itu tu isi dengan foto tersebut juga tapi di-fill width-nya sampai memenuhi width browser. Terus, foto yang nge-fill itu dibuat blur aja supaya nggak fokusnya di situ, tapi fokusnya di foto utama saat ini
+
+Oh iya, kalau sampai ujung foto, slideshow-nya itu ulang dari foto pertama lagi
+
+Untuk zoom-nya sepertinya kurang banyak. Itu kayaknya cuma nge-zoom berapa pixel aja kan? Coba dibuat lebih banyak lagi nge-zoom-nya
